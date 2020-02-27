@@ -188,6 +188,9 @@ class EasyDB
                 $arr [] = " {$i} IS NULL ";
             } elseif (\is_bool($v)) {
                 $arr []= $this->makeBooleanArgument($i, $v);
+            } elseif ($v instanceof Literal) {
+                $arr [] = " {$i} = {$v->getLiteral()}";
+                $params = array_merge($params, $v->getValues());
             } else {
                 $arr []= " {$i} = ? ";
                 $params[] = $v;
@@ -644,6 +647,9 @@ class EasyDB
                 $post []= " {$i} IS NULL ";
             } elseif (\is_bool($v)) {
                 $post []= $this->makeBooleanArgument($i, $v);
+            } elseif ($v instanceof Literal) {
+                $post []= " {$i} = {$v->getLiteral()}";
+                $params = array_merge($params, $v->getValues());
             } else {
                 // We use prepared statements for handling the users' data
                 $post []= " {$i} = ? ";
@@ -1108,6 +1114,9 @@ class EasyDB
                 $pre []= " {$i} = NULL";
             } elseif (\is_bool($v)) {
                 $pre []= $this->makeBooleanArgument($i, $v);
+            } elseif ($v instanceof Literal) {
+                $pre []= " {$i} = {$v->getLiteral()}";
+                $params = array_merge($params, $v->getValues());
             } else {
                 $pre []= " {$i} = ?";
                 $params[] = $v;
@@ -1128,6 +1137,9 @@ class EasyDB
                 $post []= " {$i} IS NULL";
             } elseif (\is_bool($v)) {
                 $post []= $this->makeBooleanArgument($i, $v);
+            } elseif ($v instanceof Literal) {
+                $post []= " {$i} = {$v->getLiteral()}";
+                $params = array_merge($params, $v->getValues());
             } else {
                 $post []= " {$i} = ? ";
                 $params[] = $v;
@@ -1181,6 +1193,9 @@ class EasyDB
                 $pre []= " {$i} = NULL";
             } elseif (\is_bool($v)) {
                 $pre []= $this->makeBooleanArgument($i, $v);
+            } elseif ($v instanceof Literal) {
+                $pre []= " {$i} = {$v->getLiteral()}";
+                $params = array_merge($params, $v->getValues());
             } else {
                 $pre []= " {$i} = ?";
                 $params[] = $v;

@@ -2,3 +2,5 @@
 /vendor/
 /composer.lock
 /.editorconfig
+/*.sublime-project
+/*.sublime-workspace

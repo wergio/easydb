@@ -154,8 +154,9 @@ class EasyDB
             );
         }
         if (empty($conditions)) {
-            // Don't allow foot-bullets
-            return 0;
+            throw new Issues\DeleteConditionMustBeNonEmpty(
+                'Only non-empty conditions array is allowed.'
+            );
         }
         if (!$this->is1DArray($conditions)) {
             throw new Issues\MustBeOneDimensionalArray(
@@ -225,9 +226,10 @@ class EasyDB
                 'Table name must be a non-empty string.'
             );
         }
-        if ($conditions->count() < 1) {
-            // Don't allow foot-bullets
-            return 0;
+        if (empty($conditions)) {
+            throw new Issues\DeleteConditionMustBeNonEmpty(
+                'Only non-empty conditions array is allowed.'
+            );
         }
         /**
          * @var string $queryString

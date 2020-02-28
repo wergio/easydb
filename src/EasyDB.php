@@ -33,7 +33,7 @@ class EasyDB
     /**
      * @var bool
      */
-    protected $allowSeparators = false;
+    protected $allowSeparators = true;
 
     /**
      * Dependency-Injectable constructor

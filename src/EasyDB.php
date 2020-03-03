@@ -1084,9 +1084,16 @@ class EasyDB
      */
     protected function updateWhereArray(string $table, array $changes, array $conditions): int
     {
-        if (empty($changes) || empty($conditions)) {
-            return 0;
+        if (empty($changes)) {
+            throw new Issues\UpdateSetAndConditionMustBeNonEmpty(
+                'Only non-empty changes array is allowed.'
+            );
         }
+        if (empty($conditions)) {
+            throw new Issues\UpdateSetAndConditionMustBeNonEmpty(
+                'Only non-empty conditions array is allowed.'
+            );
+        }        
         if (!$this->is1DArray($changes) || !$this->is1DArray($conditions)) {
             throw new Issues\MustBeOneDimensionalArray(
                 'Only one-dimensional arrays are allowed.'
@@ -1177,9 +1184,16 @@ class EasyDB
         array $changes,
         EasyStatement $conditions
     ): int {
-        if (empty($changes) || $conditions->count() < 1) {
-            return 0;
+        if (empty($changes)) {
+            throw new Issues\UpdateSetAndConditionMustBeNonEmpty(
+                'Only non-empty changes array is allowed.'
+            );
         }
+        if ($conditions->count() < 1) {
+            throw new Issues\UpdateSetAndConditionMustBeNonEmpty(
+                'Only non-empty conditions array is allowed.'
+            );
+        }         
         $queryString = 'UPDATE ' . $this->escapeIdentifier($table) . ' SET ';
         $params = [];
 

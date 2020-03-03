@@ -142,6 +142,7 @@ class EasyDB
      * @param          array  $conditions Defines the WHERE clause
      * @return         int
      * @throws         \InvalidArgumentException
+     * @throws         Issues\DeleteConditionMustBeNonEmpty
      * @psalm-suppress MixedAssignment
      * @psalm-suppress MixedArgument
      * @throws         \TypeError
@@ -215,6 +216,7 @@ class EasyDB
      * @param          EasyStatement $conditions Defines the WHERE clause
      * @return         int
      * @throws         \InvalidArgumentException
+     * @throws         Issues\DeleteConditionMustBeNonEmpty
      * @psalm-suppress MixedAssignment
      * @psalm-suppress MixedArgument
      * @throws         \TypeError
@@ -1077,6 +1079,7 @@ class EasyDB
      * @return int
      * @throws \InvalidArgumentException
      * @throws Issues\QueryError
+     * @throws Issues\UpdateSetAndConditionMustBeNonEmpty
      *
      * @psalm-suppress MixedAssignment
      * @psalm-suppress MixedArgument
@@ -1174,6 +1177,7 @@ class EasyDB
      * @return int
      * @throws \InvalidArgumentException
      * @throws Issues\QueryError
+     * @throws Issues\UpdateSetAndConditionMustBeNonEmpty
      *
      * @psalm-suppress MixedAssignment
      * @psalm-suppress MixedArgument

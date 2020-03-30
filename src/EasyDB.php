@@ -36,6 +36,16 @@ class EasyDB
     protected $allowSeparators = true;
 
     /**
+     * @var string
+     */
+    protected $lastStatement = '';
+
+    /**
+     * @var array
+     */
+    protected $lastParams = [];
+
+    /**
      * Dependency-Injectable constructor
      *
      * @param \PDO   $pdo
@@ -87,12 +97,15 @@ class EasyDB
      */
     public function column(string $statement, array $params = [], int $offset = 0)
     {
+        $this->lastStatement = $statement;
+        $this->lastParams = [];
         $stmt = $this->prepare($statement);
         if (!$this->is1DArray($params)) {
             throw new Issues\MustBeOneDimensionalArray(
                 'Only one-dimensional arrays are allowed.'
             );
         }
+        $this->lastParams = $params;
         $stmt->execute($params);
         return $stmt->fetchAll(
             \PDO::FETCH_COLUMN,
@@ -490,6 +503,26 @@ class EasyDB
     }
 
     /**
+     * Return last params specified, before feeding them to "execute"
+     *
+     * @return array
+     */
+    public function getLastParams(): array
+    {
+        return $this->lastParams;
+    }
+
+    /**
+     * Return last statement prepared, before calling "prepare"
+     *
+     * @return string
+     */
+    public function getLastStatement(): string
+    {
+        return $this->lastStatement;
+    }
+
+    /**
      * Return a copy of the PDO object (to prevent it from being modified
      * to disable safety/security features).
      *
@@ -727,7 +760,10 @@ class EasyDB
         $queryString = $this->buildInsertQuery($table, \array_keys($first));
 
         // Now let's run a query with the parameters
+        $this->lastStatement = $queryString;
+        $this->lastParams = [];
         $stmt = $this->prepare($queryString);
+        $this->lastParams = $maps;
         $count = 0;
         /**
          * @var array $params
@@ -992,6 +1028,8 @@ class EasyDB
         }
 
         if (empty($params)) {
+            $this->lastStatement = $statement;
+            $this->lastParams = [];
             $stmt = $this->pdo->query($statement);
             if ($returnNumAffected) {
                 return (int) $stmt->rowCount();
@@ -1011,7 +1049,10 @@ class EasyDB
                 'Only one-dimensional arrays are allowed.'
             );
         }
+        $this->lastStatement = $statement;
+        $this->lastParams = [];
         $stmt = $this->prepare($statement);
+        $this->lastParams = $params;
         $stmt->execute($params);
         if ($returnNumAffected) {
             return (int) $stmt->rowCount();
@@ -1035,7 +1076,10 @@ class EasyDB
                 'Only one-dimensional arrays are allowed.'
             );
         }
+        $this->lastStatement = $statement;
+        $this->lastParams = [];
         $stmt = $this->prepare($statement);
+        $this->lastParams = $params;
         $stmt->execute($params);
         return $stmt->fetchColumn(0);
     }

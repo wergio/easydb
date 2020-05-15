@@ -101,6 +101,32 @@ class EasyDB
     }
 
     /**
+     * Fetch a column, generator variant
+     *
+     * @param  string $statement SQL query without user data
+     * @param  array  $params    Parameters
+     * @param  int    $offset    How many columns from the left are we grabbing
+     *                           from each row?
+     * @return mixed
+     */
+    public function columnGenerator(string $statement, array $params = [], int $offset = 0)
+    {
+        $stmt = $this->prepare($statement);
+        if (!$this->is1DArray($params)) {
+            throw new Issues\MustBeOneDimensionalArray(
+                'Only one-dimensional arrays are allowed.'
+            );
+        }
+        $stmt->execute($params);
+        while($col = $stmt->fetchColumn($offset)) {
+            yield $col;
+            continue;
+        }
+        
+        return true;
+    }
+
+    /**
      * Variadic version of $this->single()
      *
      * @param  string $statement SQL query without user data
@@ -1020,6 +1046,63 @@ class EasyDB
     }
 
     /**
+     * Perform a Parametrized Query, generator variant
+     *
+     * @param  string $statement         The query string (hopefully untainted
+     *                                  by user input)
+     * @param  array  $params            The parameters (used in prepared
+     *                                   statements)
+     * @param  int    $fetchStyle        PDO::FETCH_STYLE
+     * @param  bool   $calledWithVariadicParams Indicates method is being invoked from variadic $params method
+     * @return bool
+     * @throws \InvalidArgumentException
+     * @throws Issues\QueryError
+     * @throws \TypeError
+     */
+    public function safeQueryGenerator(
+        string $statement,
+        array $params = [],
+        int $fetchStyle = self::DEFAULT_FETCH_STYLE,
+        bool $calledWithVariadicParams = false
+    ) {
+        if ($fetchStyle === self::DEFAULT_FETCH_STYLE) {
+            if (isset($this->options[\PDO::ATTR_DEFAULT_FETCH_MODE])) {
+                /**
+                 * @var int $fetchStyle
+                 */
+                $fetchStyle = $this->options[\PDO::ATTR_DEFAULT_FETCH_MODE];
+            } else {
+                $fetchStyle = \PDO::FETCH_ASSOC;
+            }
+        }
+
+        if (empty($params)) {
+            $stmt = $this->pdo->query($statement);
+            yield from $this->getResultsStrictTypedGenerator($stmt, $fetchStyle);
+            return true;
+        }
+        if (!$this->is1DArray($params)) {
+            if ($calledWithVariadicParams) {
+                throw new Issues\MustBeOneDimensionalArray(
+                    'Only one-dimensional arrays are allowed, please use ' .
+                    __METHOD__ .
+                    '()'
+                );
+                return false;
+            }
+
+            throw new Issues\MustBeOneDimensionalArray(
+                'Only one-dimensional arrays are allowed.'
+            );
+            return false;
+        }
+        $stmt = $this->prepare($statement);
+        $stmt->execute($params);
+        yield from $this->getResultsStrictTypedGenerator($stmt, $fetchStyle);
+        return true;
+    }
+
+    /**
      * Fetch a single result -- useful for SELECT COUNT() queries
      *
      * @param  string $statement
@@ -1351,6 +1434,33 @@ class EasyDB
         throw new \TypeError('Unexpected return type: ' . $this->getValueType($results));
     }
 
+    /**
+     * Helper for PDOStatement::fetch() for use with a generator.
+     *
+     * @param  \PDOStatement $stmt
+     * @param  int           $fetchStyle
+     * @return bool
+     * @throws \TypeError
+     */
+    protected function getResultsStrictTypedGenerator(\PDOStatement $stmt, int $fetchStyle = \PDO::FETCH_ASSOC)
+    {
+        /**
+         * @var array|object|bool $results
+         */
+        while($row = $stmt->fetch($fetchStyle)) {
+            if (\is_array($row)) {
+                yield $row;
+                continue;
+            } elseif (\is_object($row)) {
+                yield $row;
+                continue;
+            }
+            throw new \TypeError('Unexpected return type: ' . $this->getValueType($row));
+            return false;
+        }
+
+        return true;
+    }
     /**
      * @param string $column
      * @param bool   $value

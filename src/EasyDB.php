@@ -309,8 +309,8 @@ class EasyDB
                 $patternWithoutSep = '/[^0-9a-zA-Z_\/]/';
                 break;
             default:
-                $patternWithSep = '/[^\.0-9a-zA-Z_]/';
-                $patternWithoutSep = '/[^0-9a-zA-Z_]/';
+                $patternWithSep = '/[^\.0-9a-zA-Z_\-]/';
+                $patternWithoutSep = '/[^0-9a-zA-Z_\-]/';
         }
 
         // This behavior depends on whether or not separators are allowed.

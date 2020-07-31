@@ -122,8 +122,8 @@ class EasyDB
             );
         }
         $stmt->execute($params);
-        while($col = $stmt->fetchColumn($offset)) {
-            yield $col;
+        while($row = $stmt->fetch(\PDO::FETCH_NUM)) {
+            yield $row[$offset];
             continue;
         }
         
@@ -1125,7 +1125,8 @@ class EasyDB
         }
         $stmt = $this->prepare($statement);
         $stmt->execute($params);
-        return $stmt->fetchColumn(0);
+        $row = $stmt->fetch(\PDO::FETCH_NUM);
+        return $row[0];
     }
 
     /**

@@ -880,6 +880,9 @@ class EasyDB
                 } else {
                     $placeholders[] = $value ? 'TRUE' : 'FALSE';
                 }
+            } elseif ($value instanceof Literal) {
+                $placeholders [] = $value->getLiteral();
+                $values = array_merge($values, $value->getValues());
             } else {
                 $placeholders[] = '?';
                 $values[] = $value;

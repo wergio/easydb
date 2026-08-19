@@ -36,6 +36,13 @@ class EasyDB
     protected $allowSeparators = true;
 
     /**
+     * Cache della capability "INSERT ... RETURNING" per questa connessione.
+     *
+     * @var bool|null
+     */
+    protected $returningSupported = null;
+
+    /**
      * Dependency-Injectable constructor
      *
      * @param \PDO   $pdo
@@ -666,6 +673,33 @@ class EasyDB
         if (empty($map)) {
             throw new \Exception('An empty array is not allowed for insertGet()');
         }
+
+        /**
+         * Dove il server lo supporta, l'id arriva direttamente dalla INSERT.
+         * Il fallback qui sotto rilegge la riga confrontando i valori appena
+         * inseriti: fallisce su ogni colonna che trasformi il proprio input
+         * (FLOAT, DECIMAL con scala minore, UNSIGNED clampato, ENUM non valido)
+         * e in concorrenza puo' restituire la riga di un'altra sessione.
+         */
+        if ($this->supportsReturning()) {
+            list($queryString, $values) = $this->buildInsertQueryBoolSafe($table, $map);
+            /**
+             * @var string $queryString
+             * @var array $values
+             */
+            $returned = $this->safeQuery(
+                $queryString . ' RETURNING ' . $this->escapeIdentifier($field),
+                $values,
+                \PDO::FETCH_NUM,
+                false
+            );
+            if (empty($returned)) {
+                throw new \Exception('Insert failed');
+            }
+            /** @var array<int, array<int, mixed>> $returned */
+            return $returned[0][0];
+        }
+
         if ($this->insert($table, $map) < 1) {
             throw new \Exception('Insert failed');
         }
@@ -715,6 +749,32 @@ class EasyDB
                 $conditions .
                 $limiter;
         return $this->single($query, $params);
+    }
+
+    /**
+     * Il server supporta "INSERT ... RETURNING"?
+     *
+     * Solo MariaDB, dalla 10.5.0: MySQL non lo implementa affatto, quindi non
+     * basta confrontare il numero di versione. PDO::ATTR_SERVER_VERSION arriva
+     * dall'handshake ed e' gia' in memoria nel client: nessun round-trip.
+     *
+     * @return bool
+     */
+    protected function supportsReturning(): bool
+    {
+        if ($this->returningSupported === null) {
+            if ($this->dbEngine !== 'mysql') {
+                $this->returningSupported = false;
+            } else {
+                $version = (string) $this->pdo->getAttribute(\PDO::ATTR_SERVER_VERSION);
+                // MariaDB >= 10 si annuncia come "5.5.5-10.11.6-MariaDB-..." sul protocollo classico
+                $version = (string) \preg_replace('/^5\.5\.5-/', '', $version);
+                $this->returningSupported = \stripos($version, 'mariadb') !== false
+                    && \version_compare($version, '10.5', '>=');
+            }
+        }
+
+        return (bool) $this->returningSupported;
     }
 
     /**

@@ -265,9 +265,9 @@ class EasyDB
                 'Table name must be a non-empty string.'
             );
         }
-        if (empty($conditions)) {
+        if ($conditions->count() < 1) {
             throw new Issues\DeleteConditionMustBeNonEmpty(
-                'Only non-empty conditions array is allowed.'
+                'Only non-empty conditions are allowed.'
             );
         }
         /**
@@ -1189,6 +1189,9 @@ class EasyDB
         $stmt = $this->prepare($statement);
         $stmt->execute($params);
         $row = $stmt->fetch(\PDO::FETCH_NUM);
+        if ($row === false) {
+            return null;
+        }
         return $row[0];
     }
 

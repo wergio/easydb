@@ -274,7 +274,7 @@ class EasyDB
         $placeholders = [];
         /**
          * @var string $i
-         * @var string|int|bool|float|null $v
+         * @var string|int|bool|float|EasyPlaceholder|null $v
          */
         foreach ($conditions as $i => $v) {
             /** @psalm-taint-escape sql */
@@ -283,6 +283,9 @@ class EasyDB
                 $placeholders [] = " {$i} IS NULL ";
             } elseif (is_bool($v)) {
                 $placeholders []= $this->makeBooleanArgument($i, $v);
+            } elseif ($v instanceof EasyPlaceholder) {
+                $placeholders []= " {$i} = " . $v->mask() . " ";
+                $params = array_merge($params, $v->values());
             } else {
                 $placeholders []= " {$i} = ? ";
                 $params[] = $v;
@@ -771,7 +774,7 @@ class EasyDB
         $params = [];
         /**
          * @var string $i
-         * @var string|bool|null|int|float $v
+         * @var string|bool|null|int|float|EasyPlaceholder $v
          */
         foreach ($map as $i => $v) {
             // Escape the identifier to prevent stupidity
@@ -781,6 +784,9 @@ class EasyDB
                 $post []= " {$i} IS NULL ";
             } elseif (is_bool($v)) {
                 $post []= $this->makeBooleanArgument($i, $v);
+            } elseif ($v instanceof EasyPlaceholder) {
+                $post []= " {$i} = " . $v->mask() . " ";
+                $params = array_merge($params, $v->values());
             } else {
                 // We use prepared statements for handling the users' data
                 $post []= " {$i} = ? ";
@@ -1373,7 +1379,7 @@ class EasyDB
         $post = [];
         /**
          * @var string $i
-         * @var string|int|bool|float|null $v
+         * @var string|int|bool|float|EasyPlaceholder|null $v
          */
         foreach ($conditions as $i => $v) {
             /** @psalm-taint-escape sql */
@@ -1382,6 +1388,9 @@ class EasyDB
                 $post []= " {$i} IS NULL";
             } elseif (is_bool($v)) {
                 $post []= $this->makeBooleanArgument($i, $v);
+            } elseif ($v instanceof EasyPlaceholder) {
+                $post []= " {$i} = " . $v->mask();
+                $params = array_merge($params, $v->values());
             } else {
                 $post []= " {$i} = ? ";
                 $params[] = $v;

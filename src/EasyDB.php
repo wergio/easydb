@@ -12,6 +12,7 @@ use ParagonIE\EasyDB\Exception\{
     QueryError,
     UpdateSetAndConditionMustBeNonEmpty
 };
+use Generator;
 use PDO;
 use PDOStatement;
 use InvalidArgumentException;
@@ -129,6 +130,39 @@ class EasyDB
             PDO::FETCH_COLUMN,
             $offset
         );
+    }
+
+    /**
+     * Fetch a column one value at a time: generator variant of column(), for
+     * result sets too big to hold in memory.
+     *
+     * The query runs right away, so its errors surface here and not on the
+     * first iteration. Values are fetched lazily.
+     *
+     * With unbuffered queries the connection stays busy until the result set
+     * has been read to the end or the generator has been released: if you
+     * stop iterating early, unset() the generator before the next query.
+     *
+     * @param  string $statement SQL query without user data
+     * @param  array  $params    Parameters
+     * @param  int    $offset    How many columns from the left are we grabbing
+     *                           from each row?
+     * @return Generator<int, mixed>
+     *
+     * @throws MustBeOneDimensionalArray
+     *
+     * @psalm-taint-sink sql $statement
+     */
+    public function columnGenerator(string $statement, array $params = [], int $offset = 0): Generator
+    {
+        if (!$this->is1DArray($params)) {
+            throw new MustBeOneDimensionalArray(
+                'Only one-dimensional arrays are allowed.'
+            );
+        }
+        $stmt = $this->prepare($statement);
+        $stmt->execute($params);
+        return $this->fetchGenerator($stmt, PDO::FETCH_NUM, $offset);
     }
 
     /**
@@ -1045,6 +1079,60 @@ class EasyDB
     }
 
     /**
+     * Perform a parametrized query one row at a time: generator variant of
+     * safeQuery(), for result sets too big to hold in memory.
+     *
+     * Same rules as columnGenerator(): the query runs right away, rows are
+     * fetched lazily, and with unbuffered queries a generator stopped early
+     * keeps the connection busy until it is released.
+     *
+     * @param  string $statement         The query string (hopefully untainted
+     *                                   by user input)
+     * @param  array  $params            The parameters (used in prepared
+     *                                   statements)
+     * @param  int    $fetchStyle        PDO::FETCH_STYLE
+     * @param  bool   $calledWithVariadicParams Indicates method is being invoked from variadic $params method
+     * @return Generator<int, mixed>
+     *
+     * @throws MustBeOneDimensionalArray
+     *
+     * @psalm-taint-sink sql $statement
+     */
+    public function safeQueryGenerator(
+        string $statement,
+        array $params = [],
+        int $fetchStyle = self::DEFAULT_FETCH_STYLE,
+        bool $calledWithVariadicParams = false
+    ): Generator {
+        if ($fetchStyle === self::DEFAULT_FETCH_STYLE) {
+            if (isset($this->options[PDO::ATTR_DEFAULT_FETCH_MODE])) {
+                /**
+                 * @var int $fetchStyle
+                 */
+                $fetchStyle = $this->options[PDO::ATTR_DEFAULT_FETCH_MODE];
+            } else {
+                $fetchStyle = PDO::FETCH_ASSOC;
+            }
+        }
+        if (!$this->is1DArray($params)) {
+            if ($calledWithVariadicParams) {
+                throw new MustBeOneDimensionalArray(
+                    'Only one-dimensional arrays are allowed, please use ' .
+                    __METHOD__ .
+                    '()'
+                );
+            }
+
+            throw new MustBeOneDimensionalArray(
+                'Only one-dimensional arrays are allowed.'
+            );
+        }
+        $stmt = $this->prepare($statement);
+        $stmt->execute($params);
+        return $this->fetchGenerator($stmt, $fetchStyle);
+    }
+
+    /**
      * Perform a Parametrized Query
      *
      * @param  string $statement         The query string (hopefully untainted
@@ -1410,6 +1498,38 @@ class EasyDB
             return 'an instance of ' . get_class($v);
         }
         return (string) var_export($v, true);
+    }
+
+    /**
+     * Yields the rows of an executed statement one at a time.
+     *
+     * No explicit closeCursor() is needed: reading the last row frees an
+     * unbuffered connection, and releasing the generator destroys the
+     * statement, which frees it too (verified against MariaDB).
+     *
+     * @param  PDOStatement $stmt       An already executed statement
+     * @param  int          $fetchStyle PDO::FETCH_* style for each row
+     * @param  int|null     $column     If set, yield only the column at this
+     *                                  offset (requires a numeric fetch style)
+     * @return Generator<int, mixed>
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function fetchGenerator(
+        PDOStatement $stmt,
+        int $fetchStyle,
+        ?int $column = null
+    ): Generator {
+        while (($row = $stmt->fetch($fetchStyle)) !== false) {
+            if ($column === null) {
+                yield $row;
+                continue;
+            }
+            if (!is_array($row) || !array_key_exists($column, $row)) {
+                throw new InvalidArgumentException('Invalid column index: ' . $column);
+            }
+            yield $row[$column];
+        }
     }
 
     /**

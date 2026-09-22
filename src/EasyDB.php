@@ -68,18 +68,23 @@ class EasyDB
     public function __construct(PDO $pdo, string $dbEngine = '', array $options = [])
     {
         $this->pdo = $pdo;
-        $this->pdo->setAttribute(
-            PDO::ATTR_EMULATE_PREPARES,
-            false
-        );
+        if (empty($dbEngine)) {
+            $dbEngine = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        }
+
+        // pdo_sqlsrv only accepts ATTR_EMULATE_PREPARES as a prepare() option,
+        // not on the connection; its default is already false.
+        if ($dbEngine !== 'sqlsrv') {
+            $this->pdo->setAttribute(
+                PDO::ATTR_EMULATE_PREPARES,
+                false
+            );
+        }
         $this->pdo->setAttribute(
             PDO::ATTR_ERRMODE,
             PDO::ERRMODE_EXCEPTION
         );
 
-        if (empty($dbEngine)) {
-            $dbEngine = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
-        }
         $this->dbEngine = $dbEngine;
         $this->options = $options;
     }
@@ -386,7 +391,7 @@ class EasyDB
 
         if ($quote) {
             return match ($this->dbEngine) {
-                'mssql' => '[' . $str . ']',
+                'mssql', 'sqlsrv' => '[' . $str . ']',
                 'mysql' => '`' . $str . '`',
                 default => '"' . $str . '"',
             };
@@ -507,7 +512,7 @@ class EasyDB
         $value = str_replace('%', '\\%', $value);
         $value = str_replace('_', '\\_', $value);
 
-        if ($this->dbEngine === 'mssql') {
+        if ($this->dbEngine === 'mssql' || $this->dbEngine === 'sqlsrv') {
             // MSSQL also includes character ranges.
             $value = str_replace('[', '\\[', $value);
             $value = str_replace(']', '\\]', $value);

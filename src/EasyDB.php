@@ -58,6 +58,8 @@ class EasyDB
     protected PDO $pdo;
     protected array $options = [];
     protected bool $allowSeparators = false;
+    /** Cached answer of supportsReturning() for this connection. */
+    protected ?bool $returningSupported = null;
 
     /**
      * Dependency-Injectable constructor
@@ -735,6 +737,33 @@ class EasyDB
         if (empty($map)) {
             throw new InvalidArgumentException('An empty array is not allowed for insertGet()');
         }
+
+        // Where the server supports it, the value comes straight from the
+        // INSERT. The fallback below reads the row back by matching the values
+        // just inserted: it fails on any column that transforms its input
+        // (FLOAT, DECIMAL with a smaller scale, clamped UNSIGNED, invalid
+        // ENUM) and under concurrency it can return another session's row.
+        if ($this->supportsReturning()) {
+            if (!$this->is1DArray($map)) {
+                throw new MustBeOneDimensionalArray(
+                    'Only one-dimensional arrays are allowed.'
+                );
+            }
+            list($queryString, $values) = $this->buildInsertQueryBoolSafe($table, $map);
+            /** @var string $queryString */
+            /** @var array $values */
+            /** @var array<int, array<int, scalar|null>> $returned */
+            $returned = $this->safeQuery(
+                $queryString . ' RETURNING ' . $this->escapeIdentifier($field),
+                $values,
+                PDO::FETCH_NUM
+            );
+            if (empty($returned)) {
+                throw new QueryError('Insert failed');
+            }
+            return $returned[0][0];
+        }
+
         if ($this->insert($table, $map) < 1) {
             throw new QueryError('Insert failed');
         }
@@ -778,6 +807,33 @@ class EasyDB
                 $conditions .
                 $limiter;
         return $this->single($query, $params);
+    }
+
+    /**
+     * Does the server support INSERT ... RETURNING?
+     *
+     * Only MariaDB, since 10.5.0: MySQL does not implement it at all, so the
+     * version number alone is not enough. PDO::ATTR_SERVER_VERSION comes from
+     * the handshake and is already known to the client: no round trip.
+     *
+     * @return bool
+     */
+    protected function supportsReturning(): bool
+    {
+        if ($this->returningSupported === null) {
+            $this->returningSupported = false;
+            if ($this->dbEngine === 'mysql') {
+                $version = (string) $this->pdo->getAttribute(PDO::ATTR_SERVER_VERSION);
+                // MariaDB 10+ announces itself as "5.5.5-10.11.6-MariaDB-..." on the classic protocol
+                $version = (string) preg_replace('/^5\.5\.5-/', '', $version);
+                if (stripos($version, 'mariadb') !== false
+                    && preg_match('/^(\d+(?:\.\d+)*)/', $version, $m) === 1
+                ) {
+                    $this->returningSupported = version_compare($m[1], '10.5', '>=');
+                }
+            }
+        }
+        return $this->returningSupported;
     }
 
     /**

@@ -76,6 +76,9 @@ class InsertGetReturningTest extends TestCase
         ];
     }
 
+    /**
+     * @dataProvider versionProvider
+     */
     #[DataProvider('versionProvider')]
     public function testSupportsReturning(string $version, string $engine, bool $expected): void
     {

@@ -34,6 +34,9 @@ class EscapeIdentifierExtendedCharsTest extends TestCase
         ];
     }
 
+    /**
+     * @dataProvider engineProvider
+     */
     #[DataProvider('engineProvider')]
     public function testDashIsAllowed(string $engine, string $open, string $close): void
     {
@@ -43,6 +46,9 @@ class EscapeIdentifierExtendedCharsTest extends TestCase
         );
     }
 
+    /**
+     * @dataProvider engineProvider
+     */
     #[DataProvider('engineProvider')]
     public function testSpaceIsAllowed(string $engine, string $open, string $close): void
     {
@@ -52,6 +58,9 @@ class EscapeIdentifierExtendedCharsTest extends TestCase
         );
     }
 
+    /**
+     * @dataProvider engineProvider
+     */
     #[DataProvider('engineProvider')]
     public function testSurroundingWhitespaceIsDropped(string $engine, string $open, string $close): void
     {
@@ -99,6 +108,8 @@ class EscapeIdentifierExtendedCharsTest extends TestCase
 
     /**
      * Allowing dashes and spaces must not open the door to anything else.
+     *
+     * @dataProvider stillInvalidProvider
      */
     #[DataProvider('stillInvalidProvider')]
     public function testOtherCharactersAreStillRejected(string $identifier): void

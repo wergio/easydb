@@ -9,7 +9,8 @@ jobs:
     strategy:
       matrix:
         operating-system: ['ubuntu-latest']
-        php-versions: ['8.0', '8.1', '8.2']
+        # fork: only PHP 8.2 and later matter (upstream also tests 8.0 and 8.1)
+        php-versions: ['8.2']
     steps:
       - name: Checkout
         uses: actions/checkout@v4

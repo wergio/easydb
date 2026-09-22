@@ -305,6 +305,14 @@ class EasyDB
      *
      * @ref https://stackoverflow.com/questions/10573922/what-does-the-sql-standard-say-about-usage-of-backtick
      *
+     * Except on SQLite, dashes and spaces are allowed too: database names like
+     * "dbunico-foo" and column names containing spaces are legitimate once
+     * quoted. Leading and trailing whitespace is dropped, since it is never
+     * part of an identifier.
+     *
+     * Known limitation: with separators allowed, every dot is a separator, so
+     * a column literally named "D.3 R1" is split into `D`.`3 R1`.
+     *
      * @param  string $string Table or column name
      * @param  bool   $quote  Certain SQLs escape column names (i.e. mysql with `backticks`)
      * @return string
@@ -313,6 +321,7 @@ class EasyDB
      */
     public function escapeIdentifier(string $string, bool $quote = true): string
     {
+        $string = trim($string);
         if (empty($string)) {
             throw new InvalidIdentifier(
                 'Invalid identifier: Must be a non-empty string.'
@@ -324,8 +333,8 @@ class EasyDB
                 $patternWithoutSep = '/[^0-9a-zA-Z_\/]/';
                 break;
             default:
-                $patternWithSep = '/[^.0-9a-zA-Z_]/';
-                $patternWithoutSep = '/[^0-9a-zA-Z_]/';
+                $patternWithSep = '/[^.0-9a-zA-Z_\- ]/';
+                $patternWithoutSep = '/[^0-9a-zA-Z_\- ]/';
         }
 
         // This behavior depends on whether separators are allowed.

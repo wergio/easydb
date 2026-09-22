@@ -4,11 +4,13 @@ declare(strict_types=1);
 namespace ParagonIE\EasyDB;
 
 use ParagonIE\EasyDB\Exception\{
+    DeleteConditionMustBeNonEmpty,
     EasyDBException,
     InvalidIdentifier,
     InvalidTableName,
     MustBeOneDimensionalArray,
-    QueryError
+    QueryError,
+    UpdateSetAndConditionMustBeNonEmpty
 };
 use PDO;
 use PDOStatement;
@@ -181,6 +183,7 @@ class EasyDB
      * @param  EasyStatement|array $conditions Defines the WHERE clause
      * @return int
      *
+     * @throws DeleteConditionMustBeNonEmpty
      * @throws TypeError
      */
     public function delete(string $table, EasyStatement|array $conditions): int
@@ -198,6 +201,7 @@ class EasyDB
      * @param  array  $conditions Defines the WHERE clause
      * @return int
      *
+     * @throws DeleteConditionMustBeNonEmpty
      * @throws InvalidTableName
      * @throws MustBeOneDimensionalArray
      * @throws TypeError
@@ -211,7 +215,9 @@ class EasyDB
         }
         if (empty($conditions)) {
             // Don't allow foot-bullets
-            return 0;
+            throw new DeleteConditionMustBeNonEmpty(
+                'Only a non-empty conditions array is allowed.'
+            );
         }
         if (!$this->is1DArray($conditions)) {
             throw new MustBeOneDimensionalArray(
@@ -259,6 +265,7 @@ class EasyDB
      * @param  EasyStatement $conditions Defines the WHERE clause
      * @return int
      *
+     * @throws DeleteConditionMustBeNonEmpty
      * @throws InvalidTableName
      */
     protected function deleteWhereStatement(string $table, EasyStatement $conditions): int
@@ -269,8 +276,10 @@ class EasyDB
             );
         }
         if ($conditions->count() < 1) {
-            // Don't allow foot-bullets
-            return 0;
+            // Don't allow foot-bullets: an empty EasyStatement renders as "1 = 1"
+            throw new DeleteConditionMustBeNonEmpty(
+                'Only a non-empty EasyStatement is allowed.'
+            );
         }
         /** @psalm-taint-escape sql */
         $queryString = 'DELETE FROM ' . $this->escapeIdentifier($table) . ' WHERE ' . $conditions;
@@ -1119,6 +1128,7 @@ class EasyDB
      *
      * @throws QueryError
      * @throws InvalidTableName
+     * @throws UpdateSetAndConditionMustBeNonEmpty
      */
     public function update(
         string $table,
@@ -1144,11 +1154,21 @@ class EasyDB
      *                            assigned to each field
      * @param  array  $conditions WHERE clause
      * @return int
+     *
+     * @throws UpdateSetAndConditionMustBeNonEmpty
      */
     protected function updateWhereArray(string $table, array $changes, array $conditions): int
     {
-        if (empty($changes) || empty($conditions)) {
-            return 0;
+        if (empty($changes)) {
+            throw new UpdateSetAndConditionMustBeNonEmpty(
+                'Only a non-empty changes array is allowed.'
+            );
+        }
+        if (empty($conditions)) {
+            // Don't allow foot-bullets
+            throw new UpdateSetAndConditionMustBeNonEmpty(
+                'Only a non-empty conditions array is allowed.'
+            );
         }
         if (!$this->is1DArray($changes) || !$this->is1DArray($conditions)) {
             throw new MustBeOneDimensionalArray(
@@ -1219,14 +1239,24 @@ class EasyDB
      *                                   should be assigned to each field
      * @param  EasyStatement $conditions WHERE clause
      * @return int
+     *
+     * @throws UpdateSetAndConditionMustBeNonEmpty
      */
     protected function updateWhereStatement(
         string $table,
         array $changes,
         EasyStatement $conditions
     ): int {
-        if (empty($changes) || $conditions->count() < 1) {
-            return 0;
+        if (empty($changes)) {
+            throw new UpdateSetAndConditionMustBeNonEmpty(
+                'Only a non-empty changes array is allowed.'
+            );
+        }
+        if ($conditions->count() < 1) {
+            // Don't allow foot-bullets: an empty EasyStatement renders as "1 = 1"
+            throw new UpdateSetAndConditionMustBeNonEmpty(
+                'Only a non-empty EasyStatement is allowed.'
+            );
         }
         /** @psalm-taint-escape sql */
         $queryString = 'UPDATE ' . $this->escapeIdentifier($table) . ' SET ';

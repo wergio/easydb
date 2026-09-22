@@ -1,3 +1,41 @@
+# Version 3.1.1.1 (fork wergio/easydb, branch customization-v3)
+
+Upstream v3.1.1 plus the customizations of the 2.x fork line, re-applied one
+commit per topic. Each one has its own tests; the whole upstream suite still
+passes, and `tests/Driver/MysqlUnbufferedTest.php` runs it again with
+unbuffered queries, the setting the applications use.
+
+* `delete()` and `update()` with empty conditions (or empty changes) throw
+  `DeleteConditionMustBeNonEmpty` / `UpdateSetAndConditionMustBeNonEmpty`
+  instead of returning 0. An empty `EasyStatement` renders as `1 = 1`, so
+  without the guard it would hit the whole table.
+* `escapeIdentifier()` accepts dashes and spaces, except on SQLite. Leading and
+  trailing whitespace is dropped.
+* The `sqlsrv` driver is treated like `mssql`, and the constructor does not set
+  `ATTR_EMULATE_PREPARES` on it.
+* `single()` (and `cell()`) return `null` when there are no rows, never `false`.
+* New `columnGenerator()` and `safeQueryGenerator()`: the query runs right away,
+  rows are fetched lazily.
+* `insertGet()` uses `INSERT ... RETURNING` on MariaDB 10.5 and later.
+* `EasyPlaceholder` also works in the conditions of `delete()` and `update()`
+  and in the read-back of `insertGet()`.
+
+Deliberately not carried over from the 2.x line:
+
+* `Literal`: replaced by upstream's `EasyPlaceholder` (methods `mask()` and
+  `values()` instead of `getLiteral()` and `getValues()`).
+* `allowSeparators = true` as the default: call `setAllowSeparators(true)` on
+  the instance instead.
+* `exec()` in `safeQuery()` without parameters: on a SELECT it causes the
+  unbuffered-query error 2014 it was meant to prevent.
+
+Known limitations, pinned by tests:
+
+* With separators allowed every dot is a separator: a column literally named
+  `D.3 R1` becomes `` `D`.`3 R1` ``.
+* With unbuffered queries, a generator stopped early and still referenced keeps
+  the connection busy until it is released with `unset()`.
+
 # Version 3.1.1
 
 * Allow object return type in row() by @alffonsse in https://github.com/paragonie/easydb/pull/169

@@ -5,6 +5,8 @@ namespace ParagonIE\EasyDB\Tests;
 
 use InvalidArgumentException;
 use ParagonIE\EasyDB\EasyDB;
+use ParagonIE\EasyDB\EasyStatement;
+use ParagonIE\EasyDB\Exception\DeleteConditionMustBeNonEmpty;
 use ParagonIE\EasyDB\Exception\InvalidIdentifier;
 use ParagonIE\EasyDB\Exception\InvalidTableName;
 use ParagonIE\EasyDB\Exception\MustBeOneDimensionalArray;
@@ -15,6 +17,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 #[CoversClass(EasyDB::class)]
 #[CoversClass(Factory::class)]
 #[CoversClass(MustBeOneDimensionalArray::class)]
+#[CoversClass(DeleteConditionMustBeNonEmpty::class)]
+#[CoversClass(EasyStatement::class)]
 class Is1DArrayThenDeleteReadOnlyTest extends EasyDBTestCase
 {
 
@@ -59,12 +63,25 @@ class Is1DArrayThenDeleteReadOnlyTest extends EasyDBTestCase
      * @param callable $cb
      */
     #[DataProvider("goodFactoryCreateArgument2EasyDBProvider")]
-    public function testDeleteConditionsReturnsNull(callable $cb): void
+    public function testDeleteEmptyConditionsThrowsException(callable $cb): void
     {
         $db = $this->easyDBExpectedFromCallable($cb);
-        $this->assertEquals(
-            $db->delete('irrelevant_but_valid_tablename', []),
-            null
-        );
+        $this->expectException(DeleteConditionMustBeNonEmpty::class);
+        $db->delete('irrelevant_but_valid_tablename', []);
+    }
+
+    /**
+     * An empty EasyStatement renders as "1 = 1": without the guard this would
+     * be DELETE FROM ... WHERE 1 = 1, i.e. the whole table.
+     *
+     * @dataProvider goodFactoryCreateArgument2EasyDBProvider
+     * @param callable $cb
+     */
+    #[DataProvider("goodFactoryCreateArgument2EasyDBProvider")]
+    public function testDeleteEmptyEasyStatementThrowsException(callable $cb): void
+    {
+        $db = $this->easyDBExpectedFromCallable($cb);
+        $this->expectException(DeleteConditionMustBeNonEmpty::class);
+        $db->delete('irrelevant_but_valid_tablename', EasyStatement::open());
     }
 }

@@ -9,6 +9,7 @@ use ParagonIE\EasyDB\EasyStatement;
 use ParagonIE\EasyDB\Exception\InvalidIdentifier;
 use ParagonIE\EasyDB\Exception\InvalidTableName;
 use ParagonIE\EasyDB\Exception\MustBeOneDimensionalArray;
+use ParagonIE\EasyDB\Exception\UpdateSetAndConditionMustBeNonEmpty;
 use ParagonIE\EasyDB\Factory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -17,6 +18,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 #[CoversClass(EasyStatement::class)]
 #[CoversClass(Factory::class)]
 #[CoversClass(MustBeOneDimensionalArray::class)]
+#[CoversClass(UpdateSetAndConditionMustBeNonEmpty::class)]
 class UpdateTest extends EasyDBWriteTestCase
 {
 
@@ -25,13 +27,11 @@ class UpdateTest extends EasyDBWriteTestCase
      * @param callable $cb
      */
     #[DataProvider("goodFactoryCreateArgument2EasyDBProvider")]
-    public function testUpdateArgChangesReturnsNull(callable $cb): void
+    public function testUpdateEmptyChangesThrowsException(callable $cb): void
     {
         $db = $this->easyDBExpectedFromCallable($cb);
-        $this->assertEquals(
-            $db->update('irrelevant_but_valid_tablename', [], ['1=1']),
-            null
-        );
+        $this->expectException(UpdateSetAndConditionMustBeNonEmpty::class);
+        $db->update('irrelevant_but_valid_tablename', [], ['1=1']);
     }
 
     /**
@@ -39,13 +39,35 @@ class UpdateTest extends EasyDBWriteTestCase
      * @param callable $cb
      */
     #[DataProvider("goodFactoryCreateArgument2EasyDBProvider")]
-    public function testUpdateArgConditionsReturnsNull(callable $cb): void
+    public function testUpdateEmptyConditionsThrowsException(callable $cb): void
     {
         $db = $this->easyDBExpectedFromCallable($cb);
-        $this->assertEquals(
-            $db->update('irrelevant_but_valid_tablename', ['foo' => 'bar'], []),
-            null
-        );
+        $this->expectException(UpdateSetAndConditionMustBeNonEmpty::class);
+        $db->update('irrelevant_but_valid_tablename', ['foo' => 'bar'], []);
+    }
+
+    /**
+     * @dataProvider goodFactoryCreateArgument2EasyDBProvider
+     * @param callable $cb
+     */
+    #[DataProvider("goodFactoryCreateArgument2EasyDBProvider")]
+    public function testUpdateEmptyChangesWithEasyStatementThrowsException(callable $cb): void
+    {
+        $db = $this->easyDBExpectedFromCallable($cb);
+        $this->expectException(UpdateSetAndConditionMustBeNonEmpty::class);
+        $db->update('irrelevant_but_valid_tablename', [], EasyStatement::open()->with('foo = ?', 'bar'));
+    }
+
+    /**
+     * @dataProvider goodFactoryCreateArgument2EasyDBProvider
+     * @param callable $cb
+     */
+    #[DataProvider("goodFactoryCreateArgument2EasyDBProvider")]
+    public function testUpdateEmptyEasyStatementThrowsException(callable $cb): void
+    {
+        $db = $this->easyDBExpectedFromCallable($cb);
+        $this->expectException(UpdateSetAndConditionMustBeNonEmpty::class);
+        $db->update('irrelevant_but_valid_tablename', ['foo' => 'bar'], EasyStatement::open());
     }
 
     /**

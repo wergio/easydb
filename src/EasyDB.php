@@ -1113,6 +1113,10 @@ class EasyDB
     /**
      * Fetch a single result -- useful for SELECT COUNT() queries
      *
+     * Returns null when the query yields no rows. Unlike fetchColumn(), which
+     * returns false in that case, this never collides with the false that
+     * callers commonly use to signal an error.
+     *
      * @param  string $statement
      * @param  array  $params
      * @return string|int|float|bool|null
@@ -1128,7 +1132,11 @@ class EasyDB
         }
         $stmt = $this->prepare($statement);
         $stmt->execute($params);
-        return $stmt->fetchColumn(0);
+        $row = $stmt->fetch(PDO::FETCH_NUM);
+        if (!is_array($row)) {
+            return null;
+        }
+        return $row[0];
     }
 
     /**
